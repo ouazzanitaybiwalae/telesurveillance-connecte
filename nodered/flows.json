@@ -84,7 +84,8 @@
         "f2"
       ],
       [
-        "fmt_audit"
+        "fmt_audit",
+        "dash_state"
       ]
     ]
   },
@@ -107,7 +108,8 @@
         "f3"
       ],
       [
-        "fmt_audit"
+        "fmt_audit",
+        "dash_state"
       ]
     ]
   },
@@ -130,7 +132,8 @@
         "f4"
       ],
       [
-        "fmt_audit"
+        "fmt_audit",
+        "dash_state"
       ]
     ]
   },
@@ -153,10 +156,12 @@
         "mqtt_alert",
         "fmt_alert",
         "fmt_audit",
-        "dbg_alert"
+        "dbg_alert",
+        "dash_state"
       ],
       [
-        "fmt_audit"
+        "fmt_audit",
+        "dash_state"
       ]
     ]
   },
@@ -210,7 +215,8 @@
         "mqtt_alert",
         "fmt_alert",
         "fmt_audit",
-        "dbg_alert"
+        "dbg_alert",
+        "dash_state"
       ]
     ]
   },
@@ -258,7 +264,8 @@
         "mqtt_alert",
         "fmt_alert",
         "fmt_audit",
-        "dbg_alert"
+        "dbg_alert",
+        "dash_state"
       ]
     ]
   },
@@ -379,6 +386,640 @@
     "statusType": "auto",
     "x": 1360,
     "y": 440,
+    "wires": []
+  },
+  {
+    "id": "ui_base",
+    "type": "ui-base",
+    "name": "CTSMC",
+    "path": "/dashboard",
+    "includeClientData": true,
+    "acceptsClientConfig": [
+      "ui-notification",
+      "ui-control"
+    ],
+    "showPathInName": false
+  },
+  {
+    "id": "ui_theme",
+    "type": "ui-theme",
+    "name": "CTSMC",
+    "colors": {
+      "surface": "#ffffff",
+      "primary": "#0b6e99",
+      "bgPage": "#eef2f5",
+      "groupBg": "#ffffff",
+      "groupOutline": "#cfd8dc"
+    },
+    "sizes": {
+      "pagePadding": "12px",
+      "groupGap": "12px",
+      "groupBorderRadius": "6px",
+      "widgetGap": "10px"
+    }
+  },
+  {
+    "id": "ui_page",
+    "type": "ui-page",
+    "name": "Telesurveillance diabete",
+    "ui": "ui_base",
+    "path": "/ctsmc",
+    "icon": "heart-pulse",
+    "layout": "grid",
+    "theme": "ui_theme",
+    "breakpoints": [
+      {
+        "name": "Default",
+        "px": "0",
+        "cols": "3"
+      },
+      {
+        "name": "Tablet",
+        "px": "576",
+        "cols": "6"
+      },
+      {
+        "name": "Small Desktop",
+        "px": "768",
+        "cols": "9"
+      },
+      {
+        "name": "Desktop",
+        "px": "1024",
+        "cols": "12"
+      }
+    ],
+    "order": 1,
+    "className": ""
+  },
+  {
+    "id": "g_chart",
+    "type": "ui-group",
+    "name": "Glycemie en direct (mg/dL)",
+    "page": "ui_page",
+    "width": "8",
+    "height": "1",
+    "order": 1,
+    "showTitle": true,
+    "className": "",
+    "visible": "true",
+    "disabled": "false"
+  },
+  {
+    "id": "g_kpi",
+    "type": "ui-group",
+    "name": "Qualite des donnees",
+    "page": "ui_page",
+    "width": "4",
+    "height": "1",
+    "order": 2,
+    "showTitle": true,
+    "className": "",
+    "visible": "true",
+    "disabled": "false"
+  },
+  {
+    "id": "g_pat",
+    "type": "ui-group",
+    "name": "Etat des patients",
+    "page": "ui_page",
+    "width": "12",
+    "height": "1",
+    "order": 3,
+    "showTitle": true,
+    "className": "",
+    "visible": "true",
+    "disabled": "false"
+  },
+  {
+    "id": "g_act",
+    "type": "ui-group",
+    "name": "Alertes actives",
+    "page": "ui_page",
+    "width": "6",
+    "height": "1",
+    "order": 4,
+    "showTitle": true,
+    "className": "",
+    "visible": "true",
+    "disabled": "false"
+  },
+  {
+    "id": "g_rej",
+    "type": "ui-group",
+    "name": "Donnees rejetees (par etape / motif)",
+    "page": "ui_page",
+    "width": "6",
+    "height": "1",
+    "order": 5,
+    "showTitle": true,
+    "className": "",
+    "visible": "true",
+    "disabled": "false"
+  },
+  {
+    "id": "g_log",
+    "type": "ui-group",
+    "name": "Historique des alertes",
+    "page": "ui_page",
+    "width": "12",
+    "height": "1",
+    "order": 6,
+    "showTitle": true,
+    "className": "",
+    "visible": "true",
+    "disabled": "false"
+  },
+  {
+    "id": "c_dash",
+    "type": "comment",
+    "z": "tab_ctsmc",
+    "name": "Tableau de bord (Dashboard 2.0) : http://localhost:1880/dashboard/ctsmc",
+    "info": "",
+    "x": 330,
+    "y": 520,
+    "wires": []
+  },
+  {
+    "id": "dash_state",
+    "type": "function",
+    "z": "tab_ctsmc",
+    "name": "Dashboard : etat",
+    "func": "// Tableau de bord : met a jour l'etat affiche (contexte de flux) a partir des memes evenements que l'audit.\nconst a = msg.audit;\nif (!a) return null;\nconst st = flow.get('dash') || { latest: {}, active: {}, log: [], rejects: {}, accepted: 0, rejected: 0, gaps: 0 };\nlet chart = null, notif = null;\nconst hhmmss = () => new Date().toLocaleTimeString('fr-FR', { hour12: false });\n\nif (a.event === 'accepted') {\n    st.accepted++; st.gaps += (a.gap || 0);\n    st.latest[a.pid] = { mg: a.value_mgdl, gl: a.value_g_per_l, cls: a.class, ts: Date.now(),\n                         profile: (msg.payload && msg.payload.profile) || '' };\n    chart = { topic: a.pid, payload: a.value_mgdl };\n} else if (a.event === 'rejected') {\n    st.rejected++;\n    const k = a.stage + ' / ' + a.reason;\n    st.rejects[k] = (st.rejects[k] || 0) + 1;\n} else if (a.event === 'alert') {\n    const family = String(a.alert_id).startsWith('A') ? 'A' : a.alert_id;\n    const key = a.patient_pseudo_id + ':' + family;\n    const val = a.value_mgdl !== undefined ? a.value_mgdl + ' mg/dL' : '';\n    if (a.kind === 'resolved') {\n        delete st.active[key];\n    } else {\n        st.active[key] = { since: hhmmss(), patient: a.patient_pseudo_id, id: a.alert_id,\n                           level: a.level, label: a.label, value: val };\n    }\n    if (a.kind !== 'reminder') {\n        st.log.unshift({ time: hhmmss(), patient: a.patient_pseudo_id, id: a.alert_id, kind: a.kind,\n                         label: a.label, value: val });\n        st.log = st.log.slice(0, 12);\n        const colors = { rouge: '#c62828', orange: '#ef6c00', resolu: '#2e7d32' };\n        notif = { payload: a.alert_id + ' - ' + a.label + ' - ' + a.patient_pseudo_id + (val ? ' (' + val + ')' : ''),\n                  color: colors[a.level] || '#455a64' };\n    }\n}\nflow.set('dash', st);\nreturn [chart, notif];\n",
+    "outputs": 2,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 440,
+    "y": 580,
+    "wires": [
+      [
+        "ui_chart"
+      ],
+      [
+        "ui_notif"
+      ]
+    ]
+  },
+  {
+    "id": "tick2",
+    "type": "inject",
+    "z": "tab_ctsmc",
+    "name": "toutes les 2 s",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "2",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "3",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 160,
+    "y": 700,
+    "wires": [
+      [
+        "dash_render"
+      ]
+    ]
+  },
+  {
+    "id": "dash_render",
+    "type": "function",
+    "z": "tab_ctsmc",
+    "name": "Dashboard : rendu",
+    "func": "// Rendu periodique (toutes les 2 s) des tableaux et compteurs.\nconst st = flow.get('dash') || { latest: {}, active: {}, log: [], rejects: {}, accepted: 0, rejected: 0, gaps: 0 };\nconst off = flow.get('offline') || {};\nconst silent = flow.get('silent') || {};\nconst seen = flow.get('lastSeen') || {};\nconst now = Date.now();\nconst NAMES = { A01: 'A01 Hypoglycemie', A02: 'A02 Normal', A03: 'A03 A surveiller', A04: 'A04 Hyperglycemie elevee',\n                A05: 'A05 Hyperglycemie urgente', A06: 'A06 Hyperglycemie critique' };\nconst ICON = { A01: '🔴', A02: '🟢', A03: '🟡', A04: '🟠', A05: '🔴', A06: '🔴' };\n\nconst pids = Array.from(new Set(Object.keys(st.latest).concat(Object.keys(seen)))).sort();\nconst patients = pids.map(pid => {\n    const l = st.latest[pid];\n    let gw = '—';\n    if (off[pid]) gw = '⛔ HORS LIGNE';\n    else if (silent[pid]) gw = '🟠 SILENCE';\n    else if (seen[pid]) gw = '🟢 EN LIGNE';\n    return { patient: pid, profile: l ? l.profile : '', mg: l ? l.mg : '', gl: l ? l.gl : '',\n             level: l ? (ICON[l.cls] || '') + ' ' + (NAMES[l.cls] || l.cls) : '—', gateway: gw,\n             age: seen[pid] ? Math.round((now - seen[pid]) / 1000) + ' s' : '' };\n});\nconst active = Object.values(st.active).map(x => Object.assign({}, x, {\n    level: (x.level === 'rouge' ? '🔴 ' : '🟠 ') + x.level }));\nconst rejects = Object.keys(st.rejects).map(k => ({ reason: k, n: st.rejects[k] }));\n\n// Seuils de reference traces sur le graphique (une fois toutes les 3 executions)\nconst n = (context.get('n') || 0) + 1; context.set('n', n);\nlet thr = null;\nif (st.accepted > 0 && n % 3 === 0) thr = [{ topic: 'Seuil hypoglycemie 70', payload: 70 },\n                                           { topic: 'Seuil urgent 250', payload: 250 }];\nconst M = (x) => ({ payload: x });\nreturn [M(patients), M(active), M(rejects), M(String(st.accepted)), M(String(st.rejected)),\n        M(String(st.gaps)), M(st.log), thr];\n",
+    "outputs": 8,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 440,
+    "y": 700,
+    "wires": [
+      [
+        "t_pat"
+      ],
+      [
+        "t_act"
+      ],
+      [
+        "t_rej"
+      ],
+      [
+        "x_acc"
+      ],
+      [
+        "x_rej"
+      ],
+      [
+        "x_gap"
+      ],
+      [
+        "t_log"
+      ],
+      [
+        "ui_chart"
+      ]
+    ]
+  },
+  {
+    "id": "ui_chart",
+    "type": "ui-chart",
+    "z": "tab_ctsmc",
+    "group": "g_chart",
+    "name": "Glycemie",
+    "label": "",
+    "order": 1,
+    "chartType": "line",
+    "category": "topic",
+    "categoryType": "msg",
+    "xAxisLabel": "",
+    "xAxisProperty": "",
+    "xAxisPropertyType": "timestamp",
+    "xAxisType": "time",
+    "xAxisFormat": "",
+    "xAxisFormatType": "auto",
+    "yAxisLabel": "mg/dL",
+    "yAxisProperty": "payload",
+    "yAxisPropertyType": "msg",
+    "ymin": "0",
+    "ymax": "",
+    "action": "append",
+    "stackSeries": false,
+    "pointShape": "circle",
+    "pointRadius": 2,
+    "showLegend": true,
+    "removeOlder": "10",
+    "removeOlderUnit": "60",
+    "removeOlderPoints": "",
+    "colors": [
+      "#0b6e99",
+      "#2e7d32",
+      "#8e24aa",
+      "#c62828",
+      "#ef6c00",
+      "#455a64"
+    ],
+    "textColor": [
+      "#666666"
+    ],
+    "textColorDefault": true,
+    "gridColor": [
+      "#e5e5e5"
+    ],
+    "gridColorDefault": true,
+    "width": "8",
+    "height": "6",
+    "className": "",
+    "interpolation": "linear",
+    "x": 760,
+    "y": 580,
+    "wires": []
+  },
+  {
+    "id": "ui_notif",
+    "type": "ui-notification",
+    "z": "tab_ctsmc",
+    "ui": "ui_base",
+    "position": "top right",
+    "colorDefault": false,
+    "color": "#000000",
+    "displayTime": "8",
+    "showCountdown": true,
+    "outputs": 0,
+    "allowDismiss": true,
+    "dismissText": "Fermer",
+    "allowConfirm": false,
+    "confirmText": "Confirmer",
+    "raw": false,
+    "className": "",
+    "name": "Notification d'alerte",
+    "x": 780,
+    "y": 640,
+    "wires": []
+  },
+  {
+    "id": "t_pat",
+    "type": "ui-table",
+    "z": "tab_ctsmc",
+    "group": "g_pat",
+    "name": "Patients",
+    "label": "",
+    "order": 1,
+    "width": "12",
+    "height": "4",
+    "maxrows": "0",
+    "passthru": false,
+    "autocols": false,
+    "showSearch": false,
+    "deselect": true,
+    "selectionType": "none",
+    "columns": [
+      {
+        "title": "Patient (pseudonyme)",
+        "keyType": "key",
+        "key": "patient",
+        "width": "",
+        "align": "left"
+      },
+      {
+        "title": "Profil",
+        "keyType": "key",
+        "key": "profile",
+        "width": "",
+        "align": "left"
+      },
+      {
+        "title": "Glycemie (mg/dL)",
+        "keyType": "key",
+        "key": "mg",
+        "width": "",
+        "align": "left"
+      },
+      {
+        "title": "Glycemie (g/L)",
+        "keyType": "key",
+        "key": "gl",
+        "width": "",
+        "align": "left"
+      },
+      {
+        "title": "Niveau",
+        "keyType": "key",
+        "key": "level",
+        "width": "",
+        "align": "left"
+      },
+      {
+        "title": "Passerelle",
+        "keyType": "key",
+        "key": "gateway",
+        "width": "",
+        "align": "left"
+      },
+      {
+        "title": "Derniere reception",
+        "keyType": "key",
+        "key": "age",
+        "width": "",
+        "align": "left"
+      }
+    ],
+    "mobileBreakpoint": "sm",
+    "mobileBreakpointType": "defaults",
+    "action": "replace",
+    "className": "",
+    "x": 780,
+    "y": 700,
+    "wires": []
+  },
+  {
+    "id": "t_act",
+    "type": "ui-table",
+    "z": "tab_ctsmc",
+    "group": "g_act",
+    "name": "Alertes actives",
+    "label": "",
+    "order": 1,
+    "width": "6",
+    "height": "3",
+    "maxrows": "0",
+    "passthru": false,
+    "autocols": false,
+    "showSearch": false,
+    "deselect": true,
+    "selectionType": "none",
+    "columns": [
+      {
+        "title": "Depuis",
+        "keyType": "key",
+        "key": "since",
+        "width": "",
+        "align": "left"
+      },
+      {
+        "title": "Patient",
+        "keyType": "key",
+        "key": "patient",
+        "width": "",
+        "align": "left"
+      },
+      {
+        "title": "Alerte",
+        "keyType": "key",
+        "key": "id",
+        "width": "",
+        "align": "left"
+      },
+      {
+        "title": "Niveau",
+        "keyType": "key",
+        "key": "level",
+        "width": "",
+        "align": "left"
+      },
+      {
+        "title": "Libelle",
+        "keyType": "key",
+        "key": "label",
+        "width": "",
+        "align": "left"
+      },
+      {
+        "title": "Valeur",
+        "keyType": "key",
+        "key": "value",
+        "width": "",
+        "align": "left"
+      }
+    ],
+    "mobileBreakpoint": "sm",
+    "mobileBreakpointType": "defaults",
+    "action": "replace",
+    "className": "",
+    "x": 780,
+    "y": 760,
+    "wires": []
+  },
+  {
+    "id": "t_rej",
+    "type": "ui-table",
+    "z": "tab_ctsmc",
+    "group": "g_rej",
+    "name": "Rejets",
+    "label": "",
+    "order": 1,
+    "width": "6",
+    "height": "3",
+    "maxrows": "0",
+    "passthru": false,
+    "autocols": false,
+    "showSearch": false,
+    "deselect": true,
+    "selectionType": "none",
+    "columns": [
+      {
+        "title": "Etape / motif",
+        "keyType": "key",
+        "key": "reason",
+        "width": "",
+        "align": "left"
+      },
+      {
+        "title": "Nombre",
+        "keyType": "key",
+        "key": "n",
+        "width": "",
+        "align": "left"
+      }
+    ],
+    "mobileBreakpoint": "sm",
+    "mobileBreakpointType": "defaults",
+    "action": "replace",
+    "className": "",
+    "x": 780,
+    "y": 820,
+    "wires": []
+  },
+  {
+    "id": "x_acc",
+    "type": "ui-text",
+    "z": "tab_ctsmc",
+    "group": "g_kpi",
+    "order": 1,
+    "width": "4",
+    "height": "1",
+    "name": "Mesures acceptees",
+    "label": "Mesures acceptees",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 16,
+    "color": "#717171",
+    "wrapText": false,
+    "className": "",
+    "x": 780,
+    "y": 880,
+    "wires": []
+  },
+  {
+    "id": "x_rej",
+    "type": "ui-text",
+    "z": "tab_ctsmc",
+    "group": "g_kpi",
+    "order": 1,
+    "width": "4",
+    "height": "1",
+    "name": "Mesures rejetees",
+    "label": "Mesures rejetees",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 16,
+    "color": "#717171",
+    "wrapText": false,
+    "className": "",
+    "x": 780,
+    "y": 940,
+    "wires": []
+  },
+  {
+    "id": "x_gap",
+    "type": "ui-text",
+    "z": "tab_ctsmc",
+    "group": "g_kpi",
+    "order": 1,
+    "width": "4",
+    "height": "1",
+    "name": "Pertes detectees",
+    "label": "Pertes detectees (trous de sequence)",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 16,
+    "color": "#717171",
+    "wrapText": false,
+    "className": "",
+    "x": 780,
+    "y": 1000,
+    "wires": []
+  },
+  {
+    "id": "t_log",
+    "type": "ui-table",
+    "z": "tab_ctsmc",
+    "group": "g_log",
+    "name": "Historique",
+    "label": "",
+    "order": 1,
+    "width": "12",
+    "height": "4",
+    "maxrows": "0",
+    "passthru": false,
+    "autocols": false,
+    "showSearch": false,
+    "deselect": true,
+    "selectionType": "none",
+    "columns": [
+      {
+        "title": "Heure",
+        "keyType": "key",
+        "key": "time",
+        "width": "",
+        "align": "left"
+      },
+      {
+        "title": "Patient",
+        "keyType": "key",
+        "key": "patient",
+        "width": "",
+        "align": "left"
+      },
+      {
+        "title": "Alerte",
+        "keyType": "key",
+        "key": "id",
+        "width": "",
+        "align": "left"
+      },
+      {
+        "title": "Type",
+        "keyType": "key",
+        "key": "kind",
+        "width": "",
+        "align": "left"
+      },
+      {
+        "title": "Libelle",
+        "keyType": "key",
+        "key": "label",
+        "width": "",
+        "align": "left"
+      },
+      {
+        "title": "Valeur",
+        "keyType": "key",
+        "key": "value",
+        "width": "",
+        "align": "left"
+      }
+    ],
+    "mobileBreakpoint": "sm",
+    "mobileBreakpointType": "defaults",
+    "action": "replace",
+    "className": "",
+    "x": 780,
+    "y": 1060,
     "wires": []
   }
 ]

@@ -8,3 +8,37 @@ normal-20261108-021558,2026-11-08T01:16:31.241Z,P-7f3a9c,broker_disconnected,Nor
 normal-20261108-021558,2026-11-08T01:16:31.273Z,P-2b81d4,broker_disconnected,Normal disconnection
 normal-20261108-021558,2026-11-08T01:16:31.279Z,P-c04e57,broker_disconnected,Normal disconnection
 normal-20261108-021558,2026-11-08T01:16:31.280Z,-,run_end,duration=30s
+hypoglycemia-20261108-145910,2026-11-08T13:59:10.318Z,-,run_start,scenario=hypoglycemia seed=42 interval=5.0
+hypoglycemia-20261108-145910,2026-11-08T13:59:53.253Z,P-7f3a9c,episode_start,type=hypoglycemia
+hypoglycemia-20261108-145910,2026-11-08T14:01:23.760Z,P-7f3a9c,episode_end,type=hypoglycemia
+hypoglycemia-20261108-145910,2026-11-08T14:03:14.111Z,P-7f3a9c,broker_disconnected,Normal disconnection
+hypoglycemia-20261108-145910,2026-11-08T14:03:14.256Z,P-2b81d4,broker_disconnected,Normal disconnection
+hypoglycemia-20261108-145910,2026-11-08T14:03:14.293Z,P-c04e57,broker_disconnected,Normal disconnection
+hypoglycemia-20261108-145910,2026-11-08T14:03:14.293Z,-,run_end,duration=241s
+hypoglycemia-20261108-151503,2026-11-08T14:15:03.217Z,-,run_start,scenario=hypoglycemia seed=42 interval=2.0
+hypoglycemia-20261108-151503,2026-11-08T14:15:15.187Z,P-7f3a9c,episode_start,type=hypoglycemia
+hypoglycemia-20261108-151503,2026-11-08T14:15:55.358Z,P-7f3a9c,episode_end,type=hypoglycemia
+hypoglycemia-20261108-151503,2026-11-08T14:16:35.770Z,P-7f3a9c,broker_disconnected,Normal disconnection
+hypoglycemia-20261108-151503,2026-11-08T14:16:35.770Z,P-2b81d4,broker_disconnected,Normal disconnection
+hypoglycemia-20261108-151503,2026-11-08T14:16:35.802Z,P-c04e57,broker_disconnected,Normal disconnection
+hypoglycemia-20261108-151503,2026-11-08T14:16:35.803Z,-,run_end,duration=91s
+hypoglycemia-20261108-161009,2026-11-08T15:10:09.196Z,-,run_start,scenario=hypoglycemia seed=42 interval=2.0
+hypoglycemia-20261108-161009,2026-11-08T15:10:49.065Z,P-7f3a9c,episode_start,type=hypoglycemia
+hypoglycemia-20261108-161009,2026-11-08T15:11:29.313Z,P-7f3a9c,broker_disconnected,Normal disconnection
+hypoglycemia-20261108-161009,2026-11-08T15:11:29.414Z,P-2b81d4,broker_disconnected,Normal disconnection
+hypoglycemia-20261108-161009,2026-11-08T15:11:29.595Z,P-c04e57,broker_disconnected,Normal disconnection
+hypoglycemia-20261108-161009,2026-11-08T15:11:29.598Z,-,run_end,duration=51s
+hypoglycemia-20261108-212824,2026-11-08T20:28:24.984Z,-,run_start,scenario=hypoglycemia seed=42 interval=2.0
+hypoglycemia-20261108-212824,2026-11-08T20:28:51.253Z,P-7f3a9c,episode_start,type=hypoglycemia
+hypoglycemia-20261108-212824,2026-11-08T20:29:30.503Z,P-7f3a9c,episode_end,type=hypoglycemia
+hypoglycemia-20261108-212824,2026-11-08T20:30:13.288Z,P-7f3a9c,broker_disconnected,Normal disconnection
+hypoglycemia-20261108-212824,2026-11-08T20:30:13.625Z,P-2b81d4,broker_disconnected,Normal disconnection
+hypoglycemia-20261108-212824,2026-11-08T20:30:13.758Z,P-c04e57,broker_disconnected,Normal disconnection
+hypoglycemia-20261108-212824,2026-11-08T20:30:13.758Z,-,run_end,duration=93s
+hypoglycemia-20261108-222136,2026-11-08T21:21:36.746Z,-,run_start,scenario=hypoglycemia seed=42 interval=2.0
+hypoglycemia-20261108-222136,2026-11-08T21:21:48.203Z,P-7f3a9c,episode_start,type=hypoglycemia
+hypoglycemia-20261108-222136,2026-11-08T21:22:28.456Z,P-7f3a9c,episode_end,type=hypoglycemia
+hypoglycemia-20261108-222136,2026-11-08T21:23:08.602Z,P-7f3a9c,broker_disconnected,Normal disconnection
+hypoglycemia-20261108-222136,2026-11-08T21:23:08.628Z,P-2b81d4,broker_disconnected,Normal disconnection
+hypoglycemia-20261108-222136,2026-11-08T21:23:08.643Z,P-c04e57,broker_disconnected,Normal disconnection
+hypoglycemia-20261108-222136,2026-11-08T21:23:08.643Z,-,run_end,duration=90s

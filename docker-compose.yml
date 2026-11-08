@@ -17,7 +17,8 @@ services:
       - "1880:1880"
     environment:
       - MQTT_PASSWORD=${MQTT_PASSWORD}
-      - SILENCE_THRESHOLD_S=20   # silence max avant alerte S02
+      - TZ=Africa/Casablanca     # heure locale affichee sur le tableau de bord
+      - SILENCE_THRESHOLD_S=20   # chien de garde : silence max avant alerte S02
       - RENOTIFY_S=60            # rappel d'une alerte qui persiste
       - CLEAR_N=2                # lectures normales consecutives pour lever une alerte
     volumes:
