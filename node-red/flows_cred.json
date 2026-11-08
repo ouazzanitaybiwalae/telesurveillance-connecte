@@ -1,0 +1,6 @@
+{
+  "broker": {
+    "user": "nodered",
+    "password": "${MQTT_PASSWORD}"
+  }
+}

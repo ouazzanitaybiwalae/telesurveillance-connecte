@@ -1,0 +1,16 @@
+# Passerelle / simulateur : publie les mesures et son statut (LWT)
+user simulator
+topic write ctmc/patients/#
+topic write ctmc/devices/#
+
+# Node-RED : lit mesures et statuts, publie les alertes
+user nodered
+topic read ctmc/patients/#
+topic read ctmc/devices/#
+topic write ctmc/alertes/#
+
+# Consommateur d'alertes (notification, tests) : lecture seule
+user dashboard
+topic read ctmc/alertes/#
+topic read ctmc/patients/#
+topic read ctmc/devices/#

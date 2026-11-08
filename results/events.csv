@@ -1,0 +1,10 @@
+run_id,ts,patient_id,event,detail
+hypoglycemia-20261108-012655,2026-11-08T00:26:55.415Z,-,run_start,scenario=hypoglycemia seed=42 interval=1.0
+hypoglycemia-20261108-012655,2026-11-08T00:27:15.940Z,-,run_end,duration=21s
+hypoglycemia-20261108-021341,2026-11-08T01:13:41.113Z,-,run_start,scenario=hypoglycemia seed=42 interval=1.0
+hypoglycemia-20261108-021341,2026-11-08T01:14:01.816Z,-,run_end,duration=21s
+normal-20261108-021558,2026-11-08T01:15:58.239Z,-,run_start,scenario=normal seed=42 interval=5.0
+normal-20261108-021558,2026-11-08T01:16:31.241Z,P-7f3a9c,broker_disconnected,Normal disconnection
+normal-20261108-021558,2026-11-08T01:16:31.273Z,P-2b81d4,broker_disconnected,Normal disconnection
+normal-20261108-021558,2026-11-08T01:16:31.279Z,P-c04e57,broker_disconnected,Normal disconnection
+normal-20261108-021558,2026-11-08T01:16:31.280Z,-,run_end,duration=30s

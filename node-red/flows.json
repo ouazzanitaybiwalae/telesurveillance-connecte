@@ -1,0 +1,384 @@
+[
+  {
+    "id": "tab_ctsmc",
+    "type": "tab",
+    "label": "CTSMC - Alertes glycemie",
+    "disabled": false,
+    "info": "Chaine : MQTT -> schema -> consentement -> plausibilite -> moteur d'alertes -> MQTT/alertes + journal."
+  },
+  {
+    "id": "broker",
+    "type": "mqtt-broker",
+    "name": "Mosquitto",
+    "broker": "mosquitto",
+    "port": "1883",
+    "clientid": "nodered-ctsmc",
+    "autoConnect": true,
+    "usetls": false,
+    "protocolVersion": "4",
+    "keepalive": "15",
+    "cleansession": false,
+    "autoUnsubscribe": true,
+    "birthTopic": "",
+    "birthQos": "0",
+    "birthPayload": "",
+    "birthMsg": {},
+    "closeTopic": "",
+    "closeQos": "0",
+    "closePayload": "",
+    "closeMsg": {},
+    "willTopic": "",
+    "willQos": "0",
+    "willPayload": "",
+    "willMsg": {},
+    "userProps": "",
+    "sessionExpiry": ""
+  },
+  {
+    "id": "c_title",
+    "type": "comment",
+    "z": "tab_ctsmc",
+    "name": "Glycemie : validation -> consentement -> plausibilite -> alertes",
+    "info": "",
+    "x": 330,
+    "y": 40,
+    "wires": []
+  },
+  {
+    "id": "in_glu",
+    "type": "mqtt in",
+    "z": "tab_ctsmc",
+    "name": "ctmc/patients/+/glycemie",
+    "topic": "ctmc/patients/+/glycemie",
+    "qos": "1",
+    "datatype": "utf8",
+    "broker": "broker",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 170,
+    "y": 100,
+    "wires": [
+      [
+        "f1"
+      ]
+    ]
+  },
+  {
+    "id": "f1",
+    "type": "function",
+    "z": "tab_ctsmc",
+    "name": "1 · Schema + sequence",
+    "func": "// ETAPE 1 - Schema JSON, coherence topic/identite, conversion d'unite, numero de sequence.\n// Entree : msg.topic = ctmc/patients/<pid>/glycemie ; msg.payload = texte JSON.\n// Sorties : [1] message valide, [2] rejet (journal d'audit).\nconst topicPid = String(msg.topic).split('/')[2];\nconst reject = (reason, extra) => {\n    msg.audit = Object.assign({ event: 'rejected', stage: 'schema', reason: reason, pid: topicPid }, extra || {});\n    return [null, msg];\n};\nlet p;\ntry { p = JSON.parse(msg.payload); } catch (e) { return reject('not_json'); }\nif (!p || typeof p !== 'object' || Array.isArray(p)) return reject('not_json');\nfor (const k of ['device_id', 'patient_pseudo_id', 'timestamp', 'observations', 'consent', 'seq']) {\n    if (!(k in p)) return reject('missing_field', { field: k });\n}\n// Un appareil ne peut publier que sous son propre identifiant (anti-usurpation)\nif (p.patient_pseudo_id !== topicPid) {\n    return reject('pid_topic_mismatch', { claimed: String(p.patient_pseudo_id).slice(0, 40) });\n}\n// La passerelle est vivante (utilise par le chien de garde)\nconst seen = flow.get('lastSeen') || {};\nseen[topicPid] = Date.now();\nflow.set('lastSeen', seen);\n\nconst t = Date.parse(p.timestamp);\nif (isNaN(t)) return reject('bad_timestamp');\nif (!Array.isArray(p.observations)) return reject('bad_observations');\n// Code MDC 32 bits de MDC_CONC_GLU_CAPILLARY_WHOLEBLOOD (IEEE 11073-10101)\nconst o = p.observations.find(x => x && x.mdc_code === 160184);\nif (!o) return reject('missing_glucose_observation');\nif (typeof o.value !== 'number' || !isFinite(o.value)) return reject('non_numeric_value');\nlet value = o.value, converted = false;\nif (o.unit_ucum === 'mmol/L') { value = Math.round(o.value * 18.016); converted = true; }\nelse if (o.unit_ucum !== 'mg/dL') return reject('unit_mismatch', { unit: String(o.unit_ucum).slice(0, 20) });\n\n// Detection de pertes : trous dans la sequence\nconst last = context.get('lastSeq') || {};\nlet gap = 0;\nif (typeof p.seq === 'number' && last[topicPid] !== undefined && p.seq > last[topicPid] + 1) {\n    gap = p.seq - last[topicPid] - 1;\n}\nlast[topicPid] = p.seq;\ncontext.set('lastSeq', last);\n\nmsg.obs = {\n    pid: topicPid, device_id: String(p.device_id).slice(0, 30), profile: p.profile || 'inconnu',\n    consent: p.consent, ts: p.timestamp, ts_ms: t, seq: p.seq,\n    value_mgdl: value, converted: converted, quality: o.quality || 'valid', gap: gap\n};\nreturn [msg, null];\n",
+    "outputs": 2,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 420,
+    "y": 100,
+    "wires": [
+      [
+        "f2"
+      ],
+      [
+        "fmt_audit"
+      ]
+    ]
+  },
+  {
+    "id": "f2",
+    "type": "function",
+    "z": "tab_ctsmc",
+    "name": "2 · Consentement",
+    "func": "// ETAPE 2 - Consentement (loi 09-08) : sans consentement explicite, RIEN n'est traite ni stocke.\n// Le journal ne contient ni valeur ni mesure : seulement le pseudonyme et le motif.\nif (msg.obs.consent !== true) {\n    msg.audit = { event: 'rejected', stage: 'consent', reason: 'no_consent', pid: msg.obs.pid };\n    return [null, msg];\n}\nreturn [msg, null];\n",
+    "outputs": 2,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 640,
+    "y": 100,
+    "wires": [
+      [
+        "f3"
+      ],
+      [
+        "fmt_audit"
+      ]
+    ]
+  },
+  {
+    "id": "f3",
+    "type": "function",
+    "z": "tab_ctsmc",
+    "name": "3 · Plausibilite",
+    "func": "// ETAPE 3 - Plausibilite physiologique de la glycemie (mg/dL) et qualite declaree par le capteur.\nconst MIN = 20, MAX = 600;\nconst o = msg.obs;\nconst reject = (reason) => {\n    msg.audit = { event: 'rejected', stage: 'plausibility', reason: reason, pid: o.pid,\n                  seq: o.seq, value_mgdl: o.value_mgdl };\n    return [null, msg];\n};\nif (o.quality !== 'valid') return reject('quality_' + o.quality);\nif (o.value_mgdl < MIN || o.value_mgdl > MAX) return reject('implausible_value');\nreturn [msg, null];\n",
+    "outputs": 2,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 840,
+    "y": 100,
+    "wires": [
+      [
+        "f4"
+      ],
+      [
+        "fmt_audit"
+      ]
+    ]
+  },
+  {
+    "id": "f4",
+    "type": "function",
+    "z": "tab_ctsmc",
+    "name": "4 · Moteur d'alertes A01-A06",
+    "func": "// ETAPE 4 - Moteur d'alertes CTSMC (seuils en g/L = mg/dL / 100), dedoublonnage par patient.\n// Sorties : [1] alerte (ou fin d'alerte) a publier, [2] mesure acceptee.\nconst RENOTIFY_MS = (Number(env.get('RENOTIFY_S')) || 60) * 1000;\n\n// Regles par profil : modifiables ici. Seuils du tableau A01-A06 de la fiche CTSMC.\nconst RULES = {\n    T1: { hypo: 0.70, recipients_hypo: 'Infirmier de garde + medecin specialiste' },\n    T2: { hypo: 0.70, recipients_hypo: 'Infirmier de garde + medecin' }\n};\nconst rule = RULES[msg.obs.profile] || RULES.T2;\n\nfunction classify(g) {\n    if (g < rule.hypo) return { id: 'A01', level: 'rouge', label: 'Hypoglycemie',\n        recipients: rule.recipients_hypo, action: 'Alerte immediate : afficher la valeur mesuree' };\n    if (g <= 1.10) return { id: 'A02', level: null, label: 'Normal' };\n    if (g < 2.00)  return { id: 'A03', level: null, label: 'A surveiller' };\n    if (g < 2.50)  return { id: 'A04', level: 'orange', label: 'Hyperglycemie elevee',\n        recipients: 'Infirmier', action: 'Notifier le personnel soignant pour evaluation' };\n    if (g <= 5.00) return { id: 'A05', level: 'rouge', label: 'Hyperglycemie urgente',\n        recipients: 'Infirmier + medecin', action: 'Evaluation clinique, cetones selon protocole medical' };\n    return { id: 'A06', level: 'rouge', label: 'Hyperglycemie critique',\n        recipients: 'Infirmier + medecin', action: 'Evaluation medicale rapide et prioritaire' };\n}\n\nconst o = msg.obs;\nconst g = o.value_mgdl / 100;\nconst cls = classify(g);\nconst now = Date.now();\nconst CLEAR_N = Number(env.get('CLEAR_N')) || 2;           // lectures normales consecutives pour lever l'alerte\nconst SEV = { A04: 1, A05: 2, A06: 3, A01: 3 };            // gravite : seule une aggravation re-notifie\nconst state = context.get('state') || {};\nconst prev = state[o.pid];\nlet alertMsg = null;\n\nconst base = {\n    patient_pseudo_id: o.pid, profile: o.profile, device_id: o.device_id, seq: o.seq,\n    value_mgdl: o.value_mgdl, value_g_per_l: Math.round(g * 100) / 100,\n    ts_measure: o.ts, ts_detect: new Date(now).toISOString(), latency_ms: now - o.ts_ms\n};\nconst emit = (kind, extra) => {\n    const payload = Object.assign({ kind: kind }, extra, base);\n    return { topic: kind === 'resolved' ? 'ctmc/alertes/resolu' : 'ctmc/alertes/' + payload.level, qos: 1,\n             payload: payload, audit: Object.assign({ event: 'alert' }, payload) };\n};\n\nif (cls.level) {\n    const info = { alert_id: cls.id, level: cls.level, label: cls.label, recipients: cls.recipients, action: cls.action };\n    if (!prev) {\n        alertMsg = emit('new', info);\n        state[o.pid] = { id: cls.id, since: now, lastNotify: now, clear: 0 };\n    } else if (prev.id !== cls.id && SEV[cls.id] > SEV[prev.id]) {\n        alertMsg = emit('escalation', Object.assign({ previous_alert_id: prev.id }, info));\n        state[o.pid] = { id: cls.id, since: prev.since, lastNotify: now, clear: 0 };\n    } else if (prev.id !== cls.id) {\n        // attenuation (ex. A06 -> A05) : on suit le niveau sans renotifier (evite le va-et-vient autour d'un seuil)\n        state[o.pid] = { id: cls.id, since: prev.since, lastNotify: prev.lastNotify, clear: 0 };\n    } else if ((now - prev.lastNotify) >= RENOTIFY_MS) {\n        alertMsg = emit('reminder', info);\n        prev.lastNotify = now; prev.clear = 0;\n    } else {\n        prev.clear = 0;\n    }\n} else if (prev) {\n    prev.clear = (prev.clear || 0) + 1;\n    if (prev.clear >= CLEAR_N) {\n        alertMsg = emit('resolved', { alert_id: prev.id, level: 'resolu', label: 'Retour a la normale',\n                                      duration_s: Math.round((now - prev.since) / 1000) });\n        delete state[o.pid];\n    }\n}\ncontext.set('state', state);\n\nmsg.audit = { event: 'accepted', pid: o.pid, seq: o.seq, value_mgdl: o.value_mgdl,\n              value_g_per_l: base.value_g_per_l, class: cls.id, latency_ms: base.latency_ms,\n              gap: o.gap, converted: o.converted };\nmsg.cls = cls;\nmsg.payload = Object.assign({ class: cls.id }, base);\nreturn [alertMsg, msg];\n",
+    "outputs": 2,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1060,
+    "y": 100,
+    "wires": [
+      [
+        "mqtt_alert",
+        "fmt_alert",
+        "fmt_audit",
+        "dbg_alert"
+      ],
+      [
+        "fmt_audit"
+      ]
+    ]
+  },
+  {
+    "id": "c_lwt",
+    "type": "comment",
+    "z": "tab_ctsmc",
+    "name": "Etat des passerelles (LWT) et chien de garde",
+    "info": "",
+    "x": 250,
+    "y": 260,
+    "wires": []
+  },
+  {
+    "id": "in_status",
+    "type": "mqtt in",
+    "z": "tab_ctsmc",
+    "name": "ctmc/devices/+/status",
+    "topic": "ctmc/devices/+/status",
+    "qos": "1",
+    "datatype": "utf8",
+    "broker": "broker",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 170,
+    "y": 320,
+    "wires": [
+      [
+        "f5"
+      ]
+    ]
+  },
+  {
+    "id": "f5",
+    "type": "function",
+    "z": "tab_ctsmc",
+    "name": "Statut passerelle (LWT)",
+    "func": "// Statut des passerelles (LWT) : ctmc/devices/<GW-pid>/status = online | offline (retained).\nconst gw = String(msg.topic).split('/')[2] || '';\nconst pid = gw.startsWith('GW-') ? gw.slice(3) : gw;\nconst status = String(msg.payload).trim();\nconst off = flow.get('offline') || {};\nconst seen = flow.get('lastSeen') || {};\nconst now = Date.now();\nconst mk = (kind, level, label) => {\n    const payload = { kind: kind, alert_id: 'S01', level: level, label: label, patient_pseudo_id: pid,\n        device_id: gw, ts_detect: new Date(now).toISOString(),\n        recipients: 'Infirmier de garde', action: 'Verifier la passerelle et les capteurs du patient' };\n    return { topic: kind === 'resolved' ? 'ctmc/alertes/resolu' : 'ctmc/alertes/' + level, qos: 1,\n             payload: payload, audit: Object.assign({ event: 'alert' }, payload) };\n};\nif (status === 'offline') {\n    if (off[pid]) return null;\n    off[pid] = now; flow.set('offline', off);\n    return mk('new', 'orange', 'Passerelle hors ligne (LWT)');\n}\nif (status === 'online') {\n    seen[pid] = now; flow.set('lastSeen', seen);\n    if (off[pid]) {\n        delete off[pid]; flow.set('offline', off);\n        return mk('resolved', 'resolu', 'Passerelle de nouveau en ligne');\n    }\n}\nreturn null;\n",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 420,
+    "y": 320,
+    "wires": [
+      [
+        "mqtt_alert",
+        "fmt_alert",
+        "fmt_audit",
+        "dbg_alert"
+      ]
+    ]
+  },
+  {
+    "id": "tick",
+    "type": "inject",
+    "z": "tab_ctsmc",
+    "name": "toutes les 5 s",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "5",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "5",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 160,
+    "y": 400,
+    "wires": [
+      [
+        "f6"
+      ]
+    ]
+  },
+  {
+    "id": "f6",
+    "type": "function",
+    "z": "tab_ctsmc",
+    "name": "Chien de garde (silence)",
+    "func": "// Chien de garde : aucune donnee recue depuis N secondes alors que la passerelle se dit en ligne.\nconst limit = (Number(env.get('SILENCE_THRESHOLD_S')) || 20) * 1000;\nconst seen = flow.get('lastSeen') || {};\nconst off = flow.get('offline') || {};\nconst silent = flow.get('silent') || {};\nconst now = Date.now();\nconst out = [];\nconst mk = (kind, level, label, pid) => {\n    const payload = { kind: kind, alert_id: 'S02', level: level, label: label, patient_pseudo_id: pid,\n        ts_detect: new Date(now).toISOString(), silence_s: Math.round((now - seen[pid]) / 1000),\n        recipients: 'Infirmier de garde', action: 'Verifier la transmission des mesures' };\n    return { topic: kind === 'resolved' ? 'ctmc/alertes/resolu' : 'ctmc/alertes/' + level, qos: 1,\n             payload: payload, audit: Object.assign({ event: 'alert' }, payload) };\n};\nfor (const pid of Object.keys(seen)) {\n    if (off[pid]) continue;\n    const age = now - seen[pid];\n    if (age > limit && !silent[pid]) {\n        silent[pid] = now;\n        out.push(mk('new', 'orange', 'Aucune donnee recue', pid));\n    } else if (age <= limit && silent[pid]) {\n        delete silent[pid];\n        out.push(mk('resolved', 'resolu', 'Donnees de nouveau recues', pid));\n    }\n}\nflow.set('silent', silent);\nreturn out.length ? [out] : null;\n",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 420,
+    "y": 400,
+    "wires": [
+      [
+        "mqtt_alert",
+        "fmt_alert",
+        "fmt_audit",
+        "dbg_alert"
+      ]
+    ]
+  },
+  {
+    "id": "c_out",
+    "type": "comment",
+    "z": "tab_ctsmc",
+    "name": "Sorties : publication, journaux",
+    "info": "",
+    "x": 1290,
+    "y": 220,
+    "wires": []
+  },
+  {
+    "id": "mqtt_alert",
+    "type": "mqtt out",
+    "z": "tab_ctsmc",
+    "name": "ctmc/alertes/{niveau}",
+    "topic": "",
+    "qos": "1",
+    "retain": "false",
+    "respTopic": "",
+    "contentType": "",
+    "userProps": "",
+    "correl": "",
+    "expiry": "",
+    "broker": "broker",
+    "x": 1330,
+    "y": 260,
+    "wires": []
+  },
+  {
+    "id": "fmt_alert",
+    "type": "function",
+    "z": "tab_ctsmc",
+    "name": "Format alerte (JSONL)",
+    "func": "// Fichier des alertes (source des indicateurs : latence, detection).\nreturn { payload: JSON.stringify(msg.payload) };\n",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1340,
+    "y": 320,
+    "wires": [
+      [
+        "file_alert"
+      ]
+    ]
+  },
+  {
+    "id": "file_alert",
+    "type": "file",
+    "z": "tab_ctsmc",
+    "name": "/results/alerts.jsonl",
+    "filename": "/results/alerts.jsonl",
+    "filenameType": "str",
+    "appendNewline": true,
+    "createDir": true,
+    "overwriteFile": "false",
+    "encoding": "none",
+    "x": 1590,
+    "y": 320,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "fmt_audit",
+    "type": "function",
+    "z": "tab_ctsmc",
+    "name": "Format audit (JSONL)",
+    "func": "// Journal d'audit : une ligne JSON par decision (pseudonymes uniquement, aucune identite).\nif (!msg.audit) return null;\nreturn { payload: JSON.stringify(Object.assign({ ts: new Date().toISOString() }, msg.audit)) };\n",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1340,
+    "y": 380,
+    "wires": [
+      [
+        "file_audit"
+      ]
+    ]
+  },
+  {
+    "id": "file_audit",
+    "type": "file",
+    "z": "tab_ctsmc",
+    "name": "/results/audit.jsonl",
+    "filename": "/results/audit.jsonl",
+    "filenameType": "str",
+    "appendNewline": true,
+    "createDir": true,
+    "overwriteFile": "false",
+    "encoding": "none",
+    "x": 1590,
+    "y": 380,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "dbg_alert",
+    "type": "debug",
+    "z": "tab_ctsmc",
+    "name": "alertes (console)",
+    "active": true,
+    "tosidebar": true,
+    "console": true,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 1360,
+    "y": 440,
+    "wires": []
+  }
+]
